@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Alchemy Game</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      body {
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      .drop-zone {
+        background-image: linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
+        background-size: 28px 28px;
+      }
+      .alchemy-token {
+        user-select: none;
+        cursor: grab;
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+      }
+      .alchemy-token:active {
+        cursor: grabbing;
+      }
+    </style>
+  </head>
+  <body class="min-h-screen bg-slate-950 text-slate-100">
+    <div class="flex min-h-screen flex-col lg:flex-row">
+      <section class="flex-1 p-4 sm:p-6 lg:p-8">
+        <div class="mb-4 flex items-center justify-between">
+          <div>
+            <p class="text-sm uppercase tracking-[0.35em] text-cyan-400">AI Alchemy</p>
+            <h1 class="text-3xl font-semibold">Mix, collide, and discover</h1>
+          </div>
+          <div class="rounded-full border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm text-slate-300">
+            Drag items onto the canvas
+          </div>
+        </div>
+
+        <div id="canvas" class="drop-zone relative h-[70vh] min-h-[460px] overflow-hidden rounded-3xl border border-slate-800 bg-slate-900/80 p-4">
+          <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.16),_transparent_45%)]"></div>
+          <div class="relative z-10 h-full w-full">
+            <div class="mb-3 flex items-center justify-between text-sm text-slate-400">
+              <span>Canvas</span>
+              <span id="statusText">Drop a basic element to begin.</span>
+            </div>
+            <div id="canvasTokens" class="relative h-full w-full"></div>
+          </div>
+        </div>
+      </section>
+
+      <aside class="w-full border-t border-slate-800 bg-slate-950/95 lg:w-[360px] lg:border-l lg:border-t-0">
+        <div class="flex h-full flex-col">
+          <div class="border-b border-slate-800 p-4">
+            <h2 class="text-xl font-semibold">Element Vault</h2>
+            <p class="mt-1 text-sm text-slate-400">Combine two items by letting them overlap.</p>
+          </div>
+          <div id="inventoryList" class="flex-1 space-y-2 overflow-y-auto p-4"></div>
+        </div>
+      </aside>
+    </div>
+
+    <script>
+      const inventory = [
+        { name: 'Water', emoji: '💧' },
+        { name: 'Fire', emoji: '🔥' },
+        { name: 'Earth', emoji: '🌱' },
+        { name: 'Air', emoji: '💨' }
+      ];
+
+      const canvas = document.getElementById('canvas');
+      const canvasTokens = document.getElementById('canvasTokens');
+      const inventoryList = document.getElementById('inventoryList');
+      const statusText = document.getElementById('statusText');
+      const tokens = [];
+      let tokenIdCounter = 0;
+
+      function renderInventory() {
+        inventoryList.innerHTML = '';
+        inventory.forEach((item) => {
+          const card = document.createElement('button');
+          card.className = 'flex w-full items-center justify-between rounded-2xl border border-slate-800 bg-slate-900/70 px-3 py-3 text-left transition hover:border-cyan-500 hover:bg-slate-800';
+          card.draggable = true;
+          card.innerHTML = `
+            <div class="flex items-center gap-3">
+              <span class="text-2xl">${item.emoji}</span>
+              <div>
+                <div class="font-medium text-slate-100">${item.name}</div>
+                <div class="text-xs text-slate-500">Drag onto canvas</div>
+              </div>
+            </div>
+            <span class="text-xs uppercase tracking-[0.3em] text-slate-500">Item</span>
+          `;
+
+          card.addEventListener('dragstart', (event) => {
+            event.dataTransfer.setData('application/x-item-name', item.name);
+            event.dataTransfer.setData('application/x-source', 'sidebar');
+            event.dataTransfer.effectAllowed = 'copy';
+          });
+
+          inventoryList.appendChild(card);
+        });
+      }
+
+      function createToken(itemName, x, y) {
+        const item = inventory.find((entry) => entry.name === itemName);
+        if (!item) return;
+
+        const token = document.createElement('div');
+        token.className = 'alchemy-token absolute z-20 flex items-center gap-2 rounded-full border border-slate-700 bg-slate-900/95 px-3 py-2 text-sm font-medium text-slate-100';
+        token.dataset.id = `token-${tokenIdCounter++}`;
+        token.dataset.name = item.name;
+        token.style.left = `${x}px`;
+        token.style.top = `${y}px`;
+        token.innerHTML = `<span class="text-xl">${item.emoji}</span><span>${item.name}</span>`;
+
+        token.draggable = true;
+        token.addEventListener('dragstart', (event) => {
+          event.dataTransfer.setData('application/x-source', 'canvas');
+          event.dataTransfer.setData('application/x-token-id', token.dataset.id);
+          event.dataTransfer.effectAllowed = 'move';
+        });
+
+        canvasTokens.appendChild(token);
+        tokens.push(token);
+        checkCollisions();
+      }
+
+      function moveToken(tokenId, x, y) {
+        const token = tokens.find((entry) => entry.dataset.id === tokenId);
+        if (!token) return;
+        token.style.left = `${x}px`;
+        token.style.top = `${y}px`;
+        checkCollisions();
+      }
+
+      function getTokenRect(token) {
+        return {
+          left: token.offsetLeft,
+          top: token.offsetTop,
+          right: token.offsetLeft + token.offsetWidth,
+          bottom: token.offsetTop + token.offsetHeight
+        };
+      }
+
+      function intersects(a, b) {
+        const rectA = getTokenRect(a);
+        const rectB = getTokenRect(b);
+        return !(rectA.right <= rectB.left || rectA.left >= rectB.right || rectA.bottom <= rectB.top || rectA.top >= rectB.bottom);
+      }
+
+      function checkCollisions() {
+        for (let i = 0; i < tokens.length; i += 1) {
+          for (let j = i + 1; j < tokens.length; j += 1) {
+            if (intersects(tokens[i], tokens[j])) {
+              combineTokens(tokens[i], tokens[j]);
+              return;
+            }
+          }
+        }
+      }
+
+      async function combineTokens(firstToken, secondToken) {
+        const firstName = firstToken.dataset.name;
+        const secondName = secondToken.dataset.name;
+
+        statusText.textContent = `Combining ${firstName} + ${secondName}...`;
+        firstToken.remove();
+        secondToken.remove();
+        tokens.splice(tokens.indexOf(firstToken), 1);
+        tokens.splice(tokens.indexOf(secondToken), 1);
+
+        try {
+          const response = await fetch('/api/combine', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ first: firstName, second: secondName })
+          });
+          const data = await response.json();
+
+          if (data.element && data.element !== 'Nothing') {
+            inventory.push({ name: data.element, emoji: data.emoji || '🧪' });
+            renderInventory();
+            statusText.textContent = `${firstName} + ${secondName} = ${data.element} ${data.emoji}`;
+          } else {
+            statusText.textContent = `No meaningful result from ${firstName} + ${secondName}.`;
+          }
+        } catch (error) {
+          console.error(error);
+          statusText.textContent = 'Could not contact the alchemy server.';
+        }
+      }
+
+      canvas.addEventListener('dragover', (event) => {
+        event.preventDefault();
+      });
+
+      canvas.addEventListener('drop', (event) => {
+        event.preventDefault();
+        const rect = canvas.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+        const source = event.dataTransfer.getData('application/x-source');
+
+        if (source === 'sidebar') {
+          const itemName = event.dataTransfer.getData('application/x-item-name');
+          createToken(itemName, Math.max(24, Math.min(x, rect.width - 90)), Math.max(24, Math.min(y, rect.height - 48)));
+        } else if (source === 'canvas') {
+          const tokenId = event.dataTransfer.getData('application/x-token-id');
+          moveToken(tokenId, Math.max(24, Math.min(x, rect.width - 90)), Math.max(24, Math.min(y, rect.height - 48)));
+        }
+      });
+
+      renderInventory();
+    </script>
+  </body>
+</html>
