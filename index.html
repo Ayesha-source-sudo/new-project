@@ -77,6 +77,26 @@
         { name: 'Air', emoji: '💨' }
       ];
 
+      // Alchemy recipes - all combinations for the game
+      const recipes = [
+        ['water', 'fire', { element: 'Steam', emoji: '💨' }],
+        ['fire', 'water', { element: 'Steam', emoji: '💨' }],
+        ['water', 'earth', { element: 'Mud', emoji: '🪨' }],
+        ['earth', 'water', { element: 'Mud', emoji: '🪨' }],
+        ['water', 'air', { element: 'Rain', emoji: '🌧️' }],
+        ['air', 'water', { element: 'Rain', emoji: '🌧️' }],
+        ['fire', 'earth', { element: 'Lava', emoji: '🌋' }],
+        ['earth', 'fire', { element: 'Lava', emoji: '🌋' }],
+        ['fire', 'air', { element: 'Spark', emoji: '⚡' }],
+        ['air', 'fire', { element: 'Spark', emoji: '⚡' }],
+        ['earth', 'air', { element: 'Dust', emoji: '🌫️' }],
+        ['air', 'earth', { element: 'Dust', emoji: '🌫️' }],
+        ['water', 'water', { element: 'Ice', emoji: '🧊' }],
+        ['earth', 'earth', { element: 'Stone', emoji: '🪨' }],
+        ['air', 'air', { element: 'Wind', emoji: '🌪️' }],
+        ['fire', 'fire', { element: 'Flame', emoji: '🔥' }]
+      ];
+
       const canvas = document.getElementById('canvas');
       const canvasTokens = document.getElementById('canvasTokens');
       const inventoryList = document.getElementById('inventoryList');
@@ -169,7 +189,7 @@
         }
       }
 
-      async function combineTokens(firstToken, secondToken) {
+      function combineTokens(firstToken, secondToken) {
         const firstName = firstToken.dataset.name;
         const secondName = secondToken.dataset.name;
 
@@ -179,24 +199,22 @@
         tokens.splice(tokens.indexOf(firstToken), 1);
         tokens.splice(tokens.indexOf(secondToken), 1);
 
-        try {
-          const response = await fetch('/api/combine', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ first: firstName, second: secondName })
-          });
-          const data = await response.json();
-
-          if (data.element && data.element !== 'Nothing') {
-            inventory.push({ name: data.element, emoji: data.emoji || '🧪' });
+        // Look up the recipe locally
+        const a = firstName.toLowerCase();
+        const b = secondName.toLowerCase();
+        const recipe = recipes.find(([x, y]) => (x === a && y === b));
+        
+        if (recipe) {
+          const result = recipe[2];
+          if (result.element && result.element !== 'Nothing') {
+            inventory.push({ name: result.element, emoji: result.emoji || '🧪' });
             renderInventory();
-            statusText.textContent = `${firstName} + ${secondName} = ${data.element} ${data.emoji}`;
+            statusText.textContent = `${firstName} + ${secondName} = ${result.element} ${result.emoji}`;
           } else {
             statusText.textContent = `No meaningful result from ${firstName} + ${secondName}.`;
           }
-        } catch (error) {
-          console.error(error);
-          statusText.textContent = 'Could not contact the alchemy server.';
+        } else {
+          statusText.textContent = `No meaningful result from ${firstName} + ${secondName}.`;
         }
       }
 
