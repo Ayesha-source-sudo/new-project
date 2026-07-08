@@ -9,18 +9,91 @@
       body {
         font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       }
+
+      /* Main Layout Container - Responsive Grid/Flex */
+      .layout-container {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+      }
+
+      /* Mobile (below 768px): Vertical Stacking */
+      @media (max-width: 767px) {
+        .layout-container {
+          flex-direction: column;
+        }
+      }
+
+      /* Desktop and Larger (768px and above): Side-by-Side Layout */
+      @media (min-width: 768px) {
+        .layout-container {
+          flex-direction: row;
+        }
+      }
+
+      .canvas-section {
+        flex: 1;
+        padding: 0.75rem;
+      }
+
+      @media (min-width: 640px) {
+        .canvas-section {
+          padding: 1.5rem;
+        }
+      }
+
+      @media (min-width: 1024px) {
+        .canvas-section {
+          padding: 2rem;
+        }
+      }
+
+      .element-vault {
+        width: 100%;
+        border-top: 1px solid #1e293b;
+        background-color: rgba(15, 23, 42, 0.95);
+        max-height: 40vh;
+      }
+
+      @media (min-width: 768px) {
+        .element-vault {
+          width: 360px;
+          border-left: 1px solid #1e293b;
+          border-top: none;
+          max-height: none;
+        }
+      }
+
       .drop-zone {
         background-image: linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
           linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
         background-size: 28px 28px;
       }
+
       .alchemy-token {
         user-select: none;
         cursor: grab;
         box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+        touch-action: none;
+        white-space: nowrap;
       }
+
       .alchemy-token:active {
         cursor: grabbing;
+      }
+
+      /* Mobile Token Styling (below 640px) */
+      @media (max-width: 640px) {
+        .alchemy-token {
+          padding: 0.5rem 0.75rem !important;
+          font-size: 0.75rem;
+        }
+        .alchemy-token span:last-child {
+          display: none;
+        }
+        .alchemy-token span:first-child {
+          font-size: 1.25rem;
+        }
       }
     </style>
     <!-- Google tag (gtag.js) -->
@@ -34,47 +107,47 @@
 </script>
   </head>
   <body class="min-h-screen bg-slate-950 text-slate-100">
-    <div class="flex min-h-screen flex-col lg:flex-row">
-      <section class="flex-1 p-4 sm:p-6 lg:p-8">
-        <div class="mb-4 flex items-center justify-between">
+    <div class="layout-container">
+      <section class="canvas-section">
+        <div class="mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div>
-            <p class="text-sm uppercase tracking-[0.35em] text-cyan-400">AI Alchemy</p>
-            <h1 class="text-3xl font-semibold">Mix, collide, and discover</h1>
+            <p class="text-xs sm:text-sm uppercase tracking-[0.35em] text-cyan-400">AI Alchemy</p>
+            <h1 class="text-2xl sm:text-3xl font-semibold">Mix, collide, and discover</h1>
           </div>
-          <div class="rounded-full border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm text-slate-300">
-            Drag items onto the canvas
+          <div class="rounded-full border border-slate-700 bg-slate-900/80 px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-300 whitespace-nowrap">
+            Drag items
           </div>
         </div>
 
-        <div id="canvas" class="drop-zone relative h-[70vh] min-h-[460px] overflow-hidden rounded-3xl border border-slate-800 bg-slate-900/80 p-4">
+        <div id="canvas" class="drop-zone relative h-[50vh] sm:h-[60vh] md:h-[75vh] min-h-[300px] sm:min-h-[400px] md:min-h-[500px] overflow-hidden rounded-2xl sm:rounded-3xl border border-slate-800 bg-slate-900/80 p-3 sm:p-4">
           <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.16),_transparent_45%)]"></div>
-          <div class="relative z-10 h-full w-full">
-            <div class="mb-3 flex items-center justify-between text-sm text-slate-400">
+          <div class="relative z-10 h-full w-full flex flex-col">
+            <div class="mb-3 flex items-center justify-between text-xs sm:text-sm text-slate-400">
               <span>Canvas</span>
-              <span id="statusText">Drop a basic element to begin.</span>
+              <span id="statusText" class="text-right text-xs sm:text-sm">Drop a basic element to begin.</span>
             </div>
-            <div id="canvasTokens" class="relative h-full w-full"></div>
+            <div id="canvasTokens" class="relative flex-1 w-full"></div>
           </div>
         </div>
       </section>
 
-      <aside class="w-full border-t border-slate-800 bg-slate-950/95 lg:w-[360px] lg:border-l lg:border-t-0">
-        <div class="flex h-full flex-col">
-          <div class="border-b border-slate-800 p-4">
-            <h2 class="text-xl font-semibold">Element Vault</h2>
-            <p class="mt-1 text-sm text-slate-400">Combine two items by letting them overlap.</p>
+      <aside class="element-vault">
+        <div class="flex h-auto md:h-full flex-col max-h-[40vh] md:max-h-none">
+          <div class="border-b border-slate-800 p-3 sm:p-4">
+            <h2 class="text-lg sm:text-xl font-semibold">Element Vault</h2>
+            <p class="mt-1 text-xs sm:text-sm text-slate-400">Combine two items by overlap.</p>
           </div>
-          <div id="inventoryList" class="flex-1 space-y-2 overflow-y-auto p-4"></div>
+          <div id="inventoryList" class="flex-1 space-y-2 overflow-y-auto p-3 sm:p-4"></div>
         </div>
       </aside>
     </div>
 
     <script>
       const inventory = [
-        { name: 'Water', emoji: '💧' },
-        { name: 'Fire', emoji: '🔥' },
-        { name: 'Earth', emoji: '🌱' },
-        { name: 'Air', emoji: '💨' }
+        { name: 'Water', emoji: '💧', created: false },
+        { name: 'Fire', emoji: '🔥', created: false },
+        { name: 'Earth', emoji: '🌱', created: false },
+        { name: 'Air', emoji: '💨', created: false }
       ];
 
       // Alchemy recipes - all combinations for the game
@@ -108,17 +181,17 @@
         inventoryList.innerHTML = '';
         inventory.forEach((item) => {
           const card = document.createElement('button');
-          card.className = 'flex w-full items-center justify-between rounded-2xl border border-slate-800 bg-slate-900/70 px-3 py-3 text-left transition hover:border-cyan-500 hover:bg-slate-800';
+          card.className = 'flex w-full items-center justify-between rounded-xl sm:rounded-2xl border border-slate-800 bg-slate-900/70 px-2 sm:px-3 py-2 sm:py-3 text-left transition hover:border-cyan-500 hover:bg-slate-800';
           card.draggable = true;
           card.innerHTML = `
-            <div class="flex items-center gap-3">
-              <span class="text-2xl">${item.emoji}</span>
-              <div>
-                <div class="font-medium text-slate-100">${item.name}</div>
-                <div class="text-xs text-slate-500">Drag onto canvas</div>
+            <div class="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+              <span class="text-xl sm:text-2xl flex-shrink-0">${item.emoji}</span>
+              <div class="min-w-0">
+                <div class="font-medium text-slate-100 text-xs sm:text-sm truncate">${item.name}</div>
+                <div class="text-xs text-slate-500 hidden sm:block">Drag onto canvas</div>
               </div>
             </div>
-            <span class="text-xs uppercase tracking-[0.3em] text-slate-500">Item</span>
+            <span class="text-xs uppercase tracking-[0.3em] text-slate-500 hidden sm:inline">Item</span>
           `;
 
           card.addEventListener('dragstart', (event) => {
@@ -136,18 +209,26 @@
         if (!item) return;
 
         const token = document.createElement('div');
-        token.className = 'alchemy-token absolute z-20 flex items-center gap-2 rounded-full border border-slate-700 bg-slate-900/95 px-3 py-2 text-sm font-medium text-slate-100';
+        token.className = 'alchemy-token absolute z-20 flex items-center gap-1 sm:gap-2 rounded-full border border-slate-700 bg-slate-900/95 px-2 sm:px-3 py-1 sm:py-2 text-xs sm:text-sm font-medium text-slate-100';
         token.dataset.id = `token-${tokenIdCounter++}`;
         token.dataset.name = item.name;
         token.style.left = `${x}px`;
         token.style.top = `${y}px`;
-        token.innerHTML = `<span class="text-xl">${item.emoji}</span><span>${item.name}</span>`;
+        token.innerHTML = `<span class="text-lg sm:text-xl flex-shrink-0">${item.emoji}</span><span class="hidden sm:inline">${item.name}</span>`;
 
         token.draggable = true;
+        
+        let isDragging = false;
+        
         token.addEventListener('dragstart', (event) => {
+          isDragging = true;
           event.dataTransfer.setData('application/x-source', 'canvas');
           event.dataTransfer.setData('application/x-token-id', token.dataset.id);
           event.dataTransfer.effectAllowed = 'move';
+        });
+
+        token.addEventListener('dragend', () => {
+          isDragging = false;
         });
 
         canvasTokens.appendChild(token);
@@ -193,7 +274,7 @@
         const firstName = firstToken.dataset.name;
         const secondName = secondToken.dataset.name;
 
-        statusText.textContent = `Combining ${firstName} + ${secondName}...`;
+        statusText.textContent = `${firstName} + ${secondName}...`;
         firstToken.remove();
         secondToken.remove();
         tokens.splice(tokens.indexOf(firstToken), 1);
@@ -207,9 +288,10 @@
         if (recipe) {
           const result = recipe[2];
           if (result.element && result.element !== 'Nothing') {
-            inventory.push({ name: result.element, emoji: result.emoji || '🧪' });
+            const newItem = { name: result.element, emoji: result.emoji || '🧪', created: true };
+            inventory.push(newItem);
             renderInventory();
-            statusText.textContent = `${firstName} + ${secondName} = ${result.element} ${result.emoji}`;
+            statusText.textContent = `✨ ${firstName} + ${secondName} = ${result.element} ${result.emoji}`;
           } else {
             statusText.textContent = `No meaningful result from ${firstName} + ${secondName}.`;
           }
@@ -231,10 +313,16 @@
 
         if (source === 'sidebar') {
           const itemName = event.dataTransfer.getData('application/x-item-name');
-          createToken(itemName, Math.max(24, Math.min(x, rect.width - 90)), Math.max(24, Math.min(y, rect.height - 48)));
+          const padding = 24;
+          const maxX = Math.max(padding, rect.width - 120);
+          const maxY = Math.max(padding, rect.height - 60);
+          createToken(itemName, Math.max(padding, Math.min(x, maxX)), Math.max(padding, Math.min(y, maxY)));
         } else if (source === 'canvas') {
           const tokenId = event.dataTransfer.getData('application/x-token-id');
-          moveToken(tokenId, Math.max(24, Math.min(x, rect.width - 90)), Math.max(24, Math.min(y, rect.height - 48)));
+          const padding = 24;
+          const maxX = Math.max(padding, rect.width - 120);
+          const maxY = Math.max(padding, rect.height - 60);
+          moveToken(tokenId, Math.max(padding, Math.min(x, maxX)), Math.max(padding, Math.min(y, maxY)));
         }
       });
 
