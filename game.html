@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Alchemy Game</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      body {
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      /* Main Layout Container - Responsive Flex Row */
+      .layout-container {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: nowrap;
+        min-height: 100vh;
+      }
+
+      /* Mobile (below 768px): Keep row flow and allow shrinking */
+      @media (max-width: 767px) {
+        .layout-container {
+          flex-direction: row;
+        }
+      }
+
+      .canvas-section {
+        flex: 1 1 0%;
+        min-width: 0;
+        padding: 0.75rem;
+      }
+
+      @media (min-width: 640px) {
+        .canvas-section {
+          padding: 1.5rem;
+        }
+      }
+
+      @media (min-width: 1024px) {
+        .canvas-section {
+          padding: 2rem;
+        }
+      }
+
+      .element-vault {
+        flex: 0 0 28%;
+        max-width: 28%;
+        min-width: 140px;
+        border-left: 1px solid #1e293b;
+        border-top: none;
+        background-color: rgba(15, 23, 42, 0.95);
+        min-height: 0;
+        max-height: 100vh;
+        overflow: hidden;
+      }
+
+      @media (min-width: 768px) {
+        .element-vault {
+          flex: 0 0 320px;
+          max-width: 320px;
+          min-width: 0;
+        }
+      }
+
+      .element-vault > .vault-inner {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        height: 100%;
+      }
+
+      .element-vault #inventoryList {
+        overflow-y: auto;
+        min-height: 0;
+        max-height: calc(100vh - 6rem);
+      }
+
+      .drop-zone {
+        background-image: linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
+        background-size: 28px 28px;
+        transition: box-shadow 0.3s ease, transform 0.3s ease;
+      }
+
+      .drop-zone:hover {
+        box-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.18);
+        transform: translateY(-1px);
+      }
+
+      .alchemy-token {
+        user-select: none;
+        cursor: grab;
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+        touch-action: none;
+        white-space: nowrap;
+        transition: transform 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+      }
+
+      .alchemy-token:hover {
+        transform: translateY(-1px) scale(1.02);
+        box-shadow: 0 16px 30px rgba(56, 189, 248, 0.22);
+      }
+
+      .alchemy-token:active {
+        cursor: grabbing;
+        transform: scale(0.98);
+      }
+
+      .inventory-card {
+        transition: transform 0.22s ease, border-color 0.22s ease, background-color 0.22s ease;
+      }
+
+      .inventory-card:hover {
+        transform: translateY(-2px);
+        border-color: rgba(56, 189, 248, 0.35);
+        background-color: rgba(30, 41, 59, 0.95);
+      }
+
+      .inventory-card:active {
+        transform: scale(0.98);
+      }
+
+      body {
+        position: relative;
+        overflow-x: hidden;
+        background: #020617;
+      }
+
+      body::before {
+        content: '';
+        position: fixed;
+        inset: 0;
+        background: radial-gradient(circle at 15% 20%, rgba(34, 211, 238, 0.14), transparent 30%),
+          radial-gradient(circle at 85% 10%, rgba(56, 189, 248, 0.08), transparent 24%),
+          radial-gradient(circle at 30% 85%, rgba(96, 165, 250, 0.08), transparent 22%);
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      .layout-container {
+        position: relative;
+        z-index: 1;
+      }
+
+      .body-grid {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+        background-size: 36px 36px;
+        opacity: 0.35;
+        mix-blend-mode: screen;
+        z-index: 0;
+      }
+
+      .body-bg-rings {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      .body-bg-rings span {
+        position: absolute;
+        display: block;
+        border-radius: 9999px;
+        opacity: 0.36;
+        background: radial-gradient(circle at center, rgba(56,189,248,0.16), rgba(56,189,248,0.06) 40%, transparent 60%);
+        border: 1px solid rgba(56,189,248,0.10);
+        box-shadow: 0 0 90px rgba(56, 189, 248, 0.42), inset 0 0 18px rgba(56,189,248,0.03);
+      }
+
+      .body-bg-rings span:nth-child(1) {
+        width: 220px;
+        height: 220px;
+        left: 6%;
+        top: 10%;
+        animation: swaySide 12s ease-in-out infinite;
+      }
+
+      .body-bg-rings span:nth-child(2) {
+        width: 160px;
+        height: 160px;
+        right: 12%;
+        top: 24%;
+        animation: swaySide 10s ease-in-out infinite reverse;
+      }
+
+      .body-bg-rings span:nth-child(3) {
+        width: 300px;
+        height: 300px;
+        left: 52%;
+        bottom: 8%;
+        animation: swaySide 14s ease-in-out infinite;
+      }
+
+      .body-bg-rings span:nth-child(4) {
+        width: 110px;
+        height: 110px;
+        right: 22%;
+        bottom: 20%;
+        animation: swaySide 9s ease-in-out infinite reverse;
+      }
+
+      .cursor-ring {
+        position: fixed;
+        z-index: 50;
+        left: 0;
+        top: 0;
+        width: 38px;
+        height: 38px;
+        border: 1px solid rgba(56, 189, 248, 0.65);
+        border-radius: 9999px;
+        pointer-events: none;
+        transform: translate(-50%, -50%) scale(0.98);
+        transition: transform 0.12s ease-out, opacity 0.15s ease, box-shadow 0.2s ease;
+        opacity: 0.9;
+        mix-blend-mode: screen;
+      }
+
+      .cursor-ring.active {
+        transform: translate(-50%, -50%) scale(1.25);
+        box-shadow: 0 0 26px rgba(56, 189, 248, 0.35), 0 0 0 10px rgba(56, 189, 248, 0.1);
+      }
+
+      .pointer-focus {
+        transform: translateY(-1px) scale(1.02);
+        color: #ffffff;
+        text-shadow: 0 0 16px rgba(56, 189, 248, 0.14);
+      }
+
+      @keyframes floatSlow {
+        0%, 100% {
+          transform: translate3d(0, 0, 0) scale(1);
+        }
+        50% {
+          transform: translate3d(8px, -10px, 0) scale(1.04);
+        }
+      }
+
+      @keyframes swaySide {
+        0%, 100% {
+          transform: translateX(-24px);
+        }
+        50% {
+          transform: translateX(24px);
+        }
+      }
+
+      .canvas-section {
+        position: relative;
+      }
+
+      .canvas-section::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background: radial-gradient(circle at 30% 35%, rgba(56, 189, 248, 0.12), transparent 30%),
+          radial-gradient(circle at 70% 65%, rgba(14, 165, 233, 0.08), transparent 20%);
+        opacity: 0.55;
+        z-index: 0;
+        filter: blur(0.5px);
+        animation: swaySide 18s ease-in-out infinite alternate;
+      }
+
+      .canvas-section::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background: radial-gradient(circle at 25% 20%, rgba(56, 189, 248, 0.12), transparent 20%),
+          radial-gradient(circle at 80% 70%, rgba(14, 165, 233, 0.08), transparent 18%);
+      }
+
+      /* Mobile Token Styling (below 640px) */
+      @media (max-width: 640px) {
+        .alchemy-token {
+          padding: 0.5rem 0.75rem !important;
+          font-size: 0.75rem;
+        }
+        .alchemy-token span:last-child {
+          display: none;
+        }
+        .alchemy-token span:first-child {
+          font-size: 1.25rem;
+        }
+      }
+    </style>
+    <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-6ZXB4B88QZ"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-6ZXB4B88QZ');
+</script>
+  </head>
+  <body class="min-h-screen bg-slate-950 text-slate-100">
+    <div class="body-grid"></div>
+    <div class="body-bg-rings">
+      <span></span>
+      <span></span>
+      <span></span>
+      <span></span>
+    </div>
+    <div class="cursor-ring" id="cursorRing"></div>
+    <div class="layout-container">
+      <section class="canvas-section">
+        <div class="mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div>
+            <p class="text-xs sm:text-sm uppercase tracking-[0.35em] text-cyan-400">AI Alchemy</p>
+            <h1 class="text-2xl sm:text-3xl font-semibold">Mix, collide, and discover</h1>
+          </div>
+          <div class="rounded-full border border-slate-700 bg-slate-900/80 px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-300 whitespace-nowrap">
+            Drag items
+          </div>
+        </div>
+
+        <div id="canvas" class="drop-zone relative h-[50vh] sm:h-[60vh] md:h-[75vh] min-h-[300px] sm:min-h-[400px] md:min-h-[500px] overflow-hidden rounded-2xl sm:rounded-3xl border border-slate-800 bg-slate-900/80 p-3 sm:p-4">
+          <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.16),_transparent_45%)]"></div>
+          <div class="relative z-10 h-full w-full flex flex-col">
+            <div class="mb-3 flex items-center justify-between text-xs sm:text-sm text-slate-400">
+              <span>Canvas</span>
+              <span id="statusText" class="text-right text-xs sm:text-sm">Drop a basic element to begin.</span>
+            </div>
+            <div id="canvasTokens" class="relative flex-1 w-full"></div>
+          </div>
+        </div>
+      </section>
+
+      <aside class="element-vault">
+        <div class="vault-inner flex h-full flex-col min-h-0">
+          <div class="border-b border-slate-800 p-3 sm:p-4">
+            <h2 class="text-lg sm:text-xl font-semibold">Element Vault</h2>
+            <p class="mt-1 text-xs sm:text-sm text-slate-400">Combine two items by overlap.</p>
+          </div>
+          <div id="inventoryList" class="flex-1 space-y-2 overflow-y-auto p-3 sm:p-4"></div>
+        </div>
+      </aside>
+    </div>
+
+    <script>
+      const inventory = [
+        { name: 'Water', emoji: '💧', created: false },
+        { name: 'Fire', emoji: '🔥', created: false },
+        { name: 'Earth', emoji: '🌱', created: false },
+        { name: 'Air', emoji: '💨', created: false },
+        { name: 'Metal', emoji: '⚙️', created: false },
+        { name: 'Plant', emoji: '🌿', created: false },
+        { name: 'Lightning', emoji: '⚡', created: false },
+        { name: 'Ice', emoji: '🧊', created: false }
+      ];
+
+      // Alchemy recipes - all combinations for the game
+      const recipes = [
+        ['water', 'fire', { element: 'Steam', emoji: '💨' }],
+        ['fire', 'water', { element: 'Steam', emoji: '💨' }],
+        ['water', 'earth', { element: 'Mud', emoji: '🪨' }],
+        ['earth', 'water', { element: 'Mud', emoji: '🪨' }],
+        ['water', 'air', { element: 'Rain', emoji: '🌧️' }],
+        ['air', 'water', { element: 'Rain', emoji: '🌧️' }],
+        ['fire', 'earth', { element: 'Lava', emoji: '🌋' }],
+        ['earth', 'fire', { element: 'Lava', emoji: '🌋' }],
+        ['fire', 'air', { element: 'Spark', emoji: '⚡' }],
+        ['air', 'fire', { element: 'Spark', emoji: '⚡' }],
+        ['earth', 'air', { element: 'Dust', emoji: '🌫️' }],
+        ['air', 'earth', { element: 'Dust', emoji: '🌫️' }],
+        ['water', 'water', { element: 'Ice', emoji: '🧊' }],
+        ['earth', 'earth', { element: 'Stone', emoji: '🪨' }],
+        ['air', 'air', { element: 'Wind', emoji: '🌪️' }],
+        ['fire', 'fire', { element: 'Flame', emoji: '🔥' }],
+        ['metal', 'fire', { element: 'Steel', emoji: '🛡️' }],
+        ['fire', 'metal', { element: 'Steel', emoji: '🛡️' }],
+        ['metal', 'earth', { element: 'Ore', emoji: '⛏️' }],
+        ['earth', 'metal', { element: 'Ore', emoji: '⛏️' }],
+        ['plant', 'water', { element: 'Grass', emoji: '🍃' }],
+        ['water', 'plant', { element: 'Grass', emoji: '🍃' }],
+        ['plant', 'earth', { element: 'Tree', emoji: '🌲' }],
+        ['earth', 'plant', { element: 'Tree', emoji: '🌲' }],
+        ['plant', 'air', { element: 'Pollen', emoji: '🌼' }],
+        ['air', 'plant', { element: 'Pollen', emoji: '🌼' }],
+        ['plant', 'fire', { element: 'Ash', emoji: '🪦' }],
+        ['fire', 'plant', { element: 'Ash', emoji: '🪦' }],
+        ['lightning', 'air', { element: 'Storm', emoji: '⛈️' }],
+        ['air', 'lightning', { element: 'Storm', emoji: '⛈️' }],
+        ['lightning', 'water', { element: 'Energy', emoji: '⚡' }],
+        ['water', 'lightning', { element: 'Energy', emoji: '⚡' }],
+        ['metal', 'lightning', { element: 'Magnet', emoji: '🧲' }],
+        ['lightning', 'metal', { element: 'Magnet', emoji: '🧲' }],
+        ['water', 'ice', { element: 'Snow', emoji: '❄️' }],
+        ['ice', 'water', { element: 'Snow', emoji: '❄️' }],
+        ['air', 'ice', { element: 'Frost', emoji: '❄️' }],
+        ['ice', 'air', { element: 'Frost', emoji: '❄️' }],
+        ['mud', 'fire', { element: 'Brick', emoji: '🧱' }],
+        ['fire', 'mud', { element: 'Brick', emoji: '🧱' }],
+        ['steam', 'air', { element: 'Cloud', emoji: '☁️' }],
+        ['air', 'steam', { element: 'Cloud', emoji: '☁️' }],
+        ['rain', 'earth', { element: 'Swamp', emoji: '🦆' }],
+        ['earth', 'rain', { element: 'Swamp', emoji: '🦆' }],
+        ['grass', 'fire', { element: 'Smoke', emoji: '💨' }],
+        ['fire', 'grass', { element: 'Smoke', emoji: '💨' }],
+        ['lightning', 'fire', { element: 'Plasma', emoji: '🔆' }],
+        ['fire', 'lightning', { element: 'Plasma', emoji: '🔆' }]
+      ];
+
+      const canvas = document.getElementById('canvas');
+      const canvasTokens = document.getElementById('canvasTokens');
+      const inventoryList = document.getElementById('inventoryList');
+      const statusText = document.getElementById('statusText');
+      const tokens = [];
+      let tokenIdCounter = 0;
+
+      function renderInventory() {
+        inventoryList.innerHTML = '';
+        inventory.forEach((item) => {
+          const card = document.createElement('button');
+          card.className = 'inventory-card interactive flex w-full items-center justify-between rounded-xl sm:rounded-2xl border border-slate-800 bg-slate-900/70 px-2 sm:px-3 py-2 sm:py-3 text-left transition hover:border-cyan-500 hover:bg-slate-800';
+          card.draggable = true;
+          card.innerHTML = `
+            <div class="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+              <span class="text-xl sm:text-2xl flex-shrink-0">${item.emoji}</span>
+              <div class="min-w-0">
+                <div class="font-medium text-slate-100 text-xs sm:text-sm truncate">${item.name}</div>
+                <div class="text-xs text-slate-500 hidden sm:block">Drag onto canvas</div>
+              </div>
+            </div>
+            <span class="text-xs uppercase tracking-[0.3em] text-slate-500 hidden sm:inline">Item</span>
+          `;
+
+          card.addEventListener('click', playClickSound);
+          card.addEventListener('pointerenter', playHoverSound);
+          card.addEventListener('dragstart', (event) => {
+            playDragSound();
+            event.dataTransfer.setData('application/x-item-name', item.name);
+            event.dataTransfer.setData('application/x-source', 'sidebar');
+            event.dataTransfer.effectAllowed = 'copy';
+          });
+
+          inventoryList.appendChild(card);
+        });
+      }
+
+      function createToken(itemName, x, y, anchorCenter = false) {
+        const item = inventory.find((entry) => entry.name === itemName);
+        if (!item) return false;
+
+        const token = document.createElement('div');
+        token.className = 'alchemy-token absolute z-20 flex items-center gap-1 sm:gap-2 rounded-full border border-slate-700 bg-slate-900/95 px-2 sm:px-3 py-1 sm:py-2 text-xs sm:text-sm font-medium text-slate-100';
+        token.dataset.id = `token-${tokenIdCounter++}`;
+        token.dataset.name = item.name;
+        token.innerHTML = `<span class="text-lg sm:text-xl flex-shrink-0">${item.emoji}</span><span class="hidden sm:inline">${item.name}</span>`;
+
+        token.draggable = true;
+        token.addEventListener('pointerdown', (event) => {
+          if (event.button !== 0) return;
+          const rect = token.getBoundingClientRect();
+          token.dataset.dragOffsetX = event.clientX - rect.left;
+          token.dataset.dragOffsetY = event.clientY - rect.top;
+        });
+
+        token.addEventListener('pointerenter', () => {
+          playHoverSound();
+          token.classList.add('pointer-focus');
+          if (cursorRing) cursorRing.classList.add('active');
+        });
+
+        token.addEventListener('pointerleave', () => {
+          token.classList.remove('pointer-focus');
+          if (cursorRing) cursorRing.classList.remove('active');
+        });
+
+        token.addEventListener('mousedown', playClickSound);
+
+        token.addEventListener('dragstart', (event) => {
+          playDragSound();
+          event.dataTransfer.setData('application/x-source', 'canvas');
+          event.dataTransfer.setData('application/x-token-id', token.dataset.id);
+          event.dataTransfer.effectAllowed = 'move';
+        });
+
+        token.addEventListener('dragend', () => {
+          delete token.dataset.dragOffsetX;
+          delete token.dataset.dragOffsetY;
+        });
+
+        canvasTokens.appendChild(token);
+        tokens.push(token);
+
+        const tokenRect = token.getBoundingClientRect();
+        const canvasRect = canvas.getBoundingClientRect();
+        const width = tokenRect.width;
+        const height = tokenRect.height;
+        const left = anchorCenter ? x - width / 2 : x;
+        const top = anchorCenter ? y - height / 2 : y;
+        const padding = 24;
+        const clampedX = Math.max(padding, Math.min(left, canvasRect.width - width - padding));
+        const clampedY = Math.max(padding, Math.min(top, canvasRect.height - height - padding));
+        token.style.left = `${clampedX}px`;
+        token.style.top = `${clampedY}px`;
+
+        return checkCollisions();
+      }
+
+      function moveToken(tokenId, x, y) {
+        const token = tokens.find((entry) => entry.dataset.id === tokenId);
+        if (!token) return false;
+
+        const offsetX = parseFloat(token.dataset.dragOffsetX) || token.offsetWidth / 2;
+        const offsetY = parseFloat(token.dataset.dragOffsetY) || token.offsetHeight / 2;
+        const left = x - offsetX;
+        const top = y - offsetY;
+        const padding = 24;
+        const maxX = Math.max(padding, canvas.clientWidth - token.offsetWidth - padding);
+        const maxY = Math.max(padding, canvas.clientHeight - token.offsetHeight - padding);
+
+        token.style.left = `${Math.max(padding, Math.min(left, maxX))}px`;
+        token.style.top = `${Math.max(padding, Math.min(top, maxY))}px`;
+
+        return checkCollisions();
+      }
+
+      function getTokenRect(token) {
+        return {
+          left: token.offsetLeft,
+          top: token.offsetTop,
+          right: token.offsetLeft + token.offsetWidth,
+          bottom: token.offsetTop + token.offsetHeight
+        };
+      }
+
+      let audioCtx;
+      function ensureAudio() {
+        if (!audioCtx) {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+      }
+
+      function playTone(freq = 320, duration = 0.08, type = 'triangle') {
+        ensureAudio();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.001, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.15, audioCtx.currentTime + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(audioCtx.currentTime);
+        osc.stop(audioCtx.currentTime + duration);
+      }
+
+      function playClickSound() {
+        playTone(420, 0.05, 'triangle');
+      }
+
+      function playDragSound() {
+        playTone(220, 0.08, 'sine');
+      }
+
+      function playHoverSound() {
+        playTone(260, 0.04, 'sine');
+      }
+
+      function playCombineSound(success = true) {
+        if (success) {
+          playTone(520, 0.12, 'square');
+        } else {
+          playTone(170, 0.12, 'sawtooth');
+        }
+      }
+
+      function playAmbientPulse() {
+        playTone(190, 0.14, 'sine');
+        setTimeout(() => playTone(300, 0.14, 'triangle'), 180);
+      }
+
+      function showStatus(message) {
+        statusText.textContent = message;
+      }
+
+      const interactiveElements = document.querySelectorAll('button, a, .alchemy-token, .inventory-card');
+      interactiveElements.forEach((element) => {
+        element.addEventListener('click', playClickSound);
+        element.addEventListener('pointerenter', playHoverSound);
+      });
+
+      const cursorRing = document.getElementById('cursorRing');
+      const bodyGrid = document.querySelector('.body-grid');
+      const bodyRings = document.querySelector('.body-bg-rings');
+      const hoverTargets = document.querySelectorAll('button, a, h1, h2, h3, p, li');
+
+      document.body.addEventListener('pointermove', (event) => {
+        const x = event.clientX;
+        const y = event.clientY;
+        if (cursorRing) {
+          cursorRing.style.left = `${x}px`;
+          cursorRing.style.top = `${y}px`;
+        }
+
+        const moveX = (x / window.innerWidth - 0.5) * 16;
+        const moveY = (y / window.innerHeight - 0.5) * 16;
+        if (bodyGrid) bodyGrid.style.transform = `translate(${moveX}px, ${moveY}px)`;
+        if (bodyRings) bodyRings.style.transform = `translate(${moveX * 0.6}px, ${moveY * 0.6}px)`;
+      });
+
+      document.addEventListener('pointerdown', () => {
+        if (cursorRing) cursorRing.classList.add('active');
+      });
+
+      document.addEventListener('pointerup', () => {
+        if (cursorRing) cursorRing.classList.remove('active');
+      });
+
+      hoverTargets.forEach((target) => {
+        target.addEventListener('pointerenter', () => {
+          target.classList.add('pointer-focus');
+          if (cursorRing) cursorRing.classList.add('active');
+        });
+        target.addEventListener('pointerleave', () => {
+          target.classList.remove('pointer-focus');
+          if (cursorRing) cursorRing.classList.remove('active');
+        });
+      });
+
+      // Fallback JS animation for canvas rings if CSS animations aren't running
+      function startFallbackRingAnimationIndex(containerSelector, options = {}) {
+        const container = document.querySelector(containerSelector);
+        if (!container) return;
+        const spans = Array.from(container.querySelectorAll('span'));
+        if (!spans.length) return;
+
+        const cs = window.getComputedStyle(spans[0]);
+        const animName = cs.getPropertyValue('animation-name') || cs.getPropertyValue('-webkit-animation-name');
+        if (animName && animName.trim() !== 'none') return;
+
+        let start = null;
+        function step(ts) {
+          if (!start) start = ts;
+          const t = (ts - start) / 1000;
+          spans.forEach((s, i) => {
+            const amp = (18 + i * 5) * (options.amplitudeMultiplier || 1);
+            const speed = (0.16 + i * 0.018) * (options.speedMultiplier || 1);
+            const x = Math.sin(t * (1 + speed) + i * 0.9) * amp;
+            const y = Math.cos(t * (0.5 + speed * 0.4) + i * 0.6) * (amp * 0.1);
+            s.style.transform = `translate(${x}px, ${y}px)`;
+          });
+          requestAnimationFrame(step);
+        }
+        requestAnimationFrame(step);
+      }
+
+      startFallbackRingAnimationIndex('.body-bg-rings', { amplitudeMultiplier: 1.05, speedMultiplier: 2.4 });
+
+      function intersects(a, b) {
+        const rectA = getTokenRect(a);
+        const rectB = getTokenRect(b);
+        const tolerance = 8;
+        return !(rectA.right + tolerance <= rectB.left || rectA.left - tolerance >= rectB.right || rectA.bottom + tolerance <= rectB.top || rectA.top - tolerance >= rectB.bottom);
+      }
+
+      function checkCollisions() {
+        for (let i = 0; i < tokens.length; i += 1) {
+          for (let j = i + 1; j < tokens.length; j += 1) {
+            if (intersects(tokens[i], tokens[j])) {
+              combineTokens(tokens[i], tokens[j]);
+              return true;
+            }
+          }
+        }
+        return false;
+      }
+
+      function getRecipe(a, b) {
+        return recipes.find(([x, y]) => x === a && y === b);
+      }
+
+      function combineTokens(firstToken, secondToken) {
+        const firstName = firstToken.dataset.name;
+        const secondName = secondToken.dataset.name;
+        const a = firstName.toLowerCase();
+        const b = secondName.toLowerCase();
+        const recipe = getRecipe(a, b);
+
+        const firstX = parseInt(firstToken.style.left, 10);
+        const firstY = parseInt(firstToken.style.top, 10);
+        const secondX = parseInt(secondToken.style.left, 10);
+        const secondY = parseInt(secondToken.style.top, 10);
+        const resultX = Math.round((firstX + secondX) / 2);
+        const resultY = Math.round((firstY + secondY) / 2);
+
+        firstToken.remove();
+        secondToken.remove();
+
+        const firstIndex = tokens.indexOf(firstToken);
+        if (firstIndex > -1) tokens.splice(firstIndex, 1);
+        const secondIndex = tokens.indexOf(secondToken);
+        if (secondIndex > -1) tokens.splice(secondIndex, 1);
+
+        if (!recipe || !recipe[2].element || recipe[2].element === 'Nothing') {
+          playCombineSound(false);
+          showStatus(`No meaningful result from ${firstName} + ${secondName}.`);
+          return;
+        }
+
+        const result = recipe[2];
+        const resultName = result.element;
+        const resultEmoji = result.emoji || '🧪';
+
+        playCombineSound(true);
+        showStatus(`✨ ${firstName} + ${secondName} = ${resultName} ${resultEmoji}`);
+
+        const existing = inventory.find((entry) => entry.name === resultName);
+        if (!existing) {
+          inventory.push({ name: resultName, emoji: resultEmoji, created: true });
+          renderInventory();
+        }
+
+        createToken(resultName, resultX, resultY);
+      }
+
+      canvas.addEventListener('dragover', (event) => {
+        event.preventDefault();
+      });
+
+      canvas.addEventListener('drop', (event) => {
+        event.preventDefault();
+        const rect = canvas.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+        const source = event.dataTransfer.getData('application/x-source');
+
+        if (source === 'sidebar') {
+          const itemName = event.dataTransfer.getData('application/x-item-name');
+          const combined = createToken(itemName, x, y, true);
+          if (!combined) {
+            showStatus(`${itemName} dropped. Overlap with another element to combine.`);
+          }
+        } else if (source === 'canvas') {
+          const tokenId = event.dataTransfer.getData('application/x-token-id');
+          const combined = moveToken(tokenId, x, y);
+          if (!combined) {
+            showStatus(`Element moved. Check for overlap to combine.`);
+          }
+        }
+      });
+
+      renderInventory();
+      setInterval(playAmbientPulse, 5600);
+
+      document.querySelectorAll('button, a').forEach((element) => {
+        element.addEventListener('click', playClickSound);
+      });
+    </script>
+  </body>
+</html>
