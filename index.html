@@ -260,6 +260,44 @@
     </style>
   </head>
   <body class="min-h-screen bg-slate-950 text-slate-100 hero-bg">
+    <!-- ============================================
+         LOGIN OVERLAY - Gatekeeping Layer
+         ============================================ -->
+    <div id="login-overlay" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/95 backdrop-blur-sm">
+      <div class="flex flex-col items-center gap-8">
+        <!-- Logo/Title -->
+        <div class="text-center">
+          <p class="text-xs uppercase tracking-[0.35em] text-cyan-400">AI Alchemy</p>
+          <h1 class="mt-3 text-4xl font-semibold text-white sm:text-5xl">Welcome</h1>
+          <p class="mt-3 text-slate-300">Sign in to start your alchemy journey</p>
+        </div>
+
+        <!-- Google Sign-In Button -->
+        <button
+          onclick="window.loginWithGoogle()"
+          class="glow-button inline-flex items-center justify-center gap-3 rounded-full bg-white px-8 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-white/20 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-slate-950 transition"
+        >
+          <!-- Google Logo SVG -->
+          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+          </svg>
+          Sign in with Google
+        </button>
+
+        <!-- Loading indicator (hidden by default) -->
+        <div id="auth-loading" class="hidden text-center">
+          <div class="inline-flex h-8 w-8 animate-spin rounded-full border-2 border-cyan-400 border-t-cyan-600"></div>
+          <p class="mt-3 text-slate-300">Signing in...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================
+         MAIN CONTENT (Hidden until login)
+         ============================================ -->
     <div class="absolute inset-0 pointer-events-none">
       <div class="hero-grid"></div>
       <div class="hero-bg-rings">
@@ -270,6 +308,21 @@
       </div>
     </div>
     <div class="cursor-ring" id="cursorRing"></div>
+
+    <!-- ============================================
+         USER PROFILE HUD (Top-Right Corner)
+         ============================================ -->
+    <div id="profile-hud" class="fixed top-4 right-4 z-40 hidden flex items-center gap-3 rounded-full bg-slate-900/90 border border-slate-700 px-3 py-2 shadow-lg backdrop-blur">
+      <img id="profile-pic" class="h-10 w-10 rounded-full border border-cyan-400" src="" alt="Profile" />
+      <div class="flex flex-col">
+        <span id="profile-name" class="text-sm font-semibold text-white">User</span>
+        <span class="text-xs text-cyan-300">Logged in</span>
+      </div>
+      <button onclick="window.logoutUser()" class="ml-2 px-3 py-1 text-xs font-semibold text-slate-100 bg-red-600/80 hover:bg-red-600 rounded-full transition">
+        Logout
+      </button>
+    </div>
+
     <div class="mx-auto relative max-w-6xl px-6 py-10 pb-14 sm:px-8 lg:px-12">
       <header class="mb-10 flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -512,16 +565,18 @@
       // run fallback on load (faster)
       startFallbackRingAnimation('.hero-bg-rings', { amplitudeMultiplier: 1.05, speedMultiplier: 2.4 });
     </script>
-    <!-- <script type="module">
-  // Import the functions you need from the SDKs you need
+    
+
+<script type="module">
+  // ============================================
+  // FIREBASE INITIALIZATION & AUTH SETUP
+  // ============================================
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
   import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-analytics.js";
   import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
-  // TODO: Add SDKs for Firebase products that you want to use
-  // https://firebase.google.com/docs/web/setup#available-libraries
+  import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
 
-  // Your web app's Firebase configuration
-  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+  // Firebase configuration
   const firebaseConfig = {
     apiKey: "AIzaSyBfK7g3g210klLM5Zrt9ssSyh-HKDjtdqQ",
     authDomain: "sandbox-60afd.firebaseapp.com",
@@ -535,49 +590,119 @@
   // Initialize Firebase
   const app = initializeApp(firebaseConfig);
   const analytics = getAnalytics(app);
-  // Database ko check karne ke liye ek sample score save karte hain
-import { collection, addDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-
-async function saveSampleScore() {
-  try {
-    const docRef = await addDoc(collection(db, "player_scores"), {
-      playerName: "Ayesha",
-      score: 150,
-      timestamp: new Date()
-    });
-    console.log("Data successfully saved with ID: ", docRef.id);
-  } catch (e) {
-    console.error("Error adding document: ", e);
-  }
-}
-
-// Is function ko call karein taake data save ho sake
-saveSampleScore();
-</script> -->
-
-<script type="module">
-  // 1. Saare imports top par ek hi version (12.16.0) ke sath
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
-  import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-analytics.js";
-  import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
-
-  // 2. Aapki Firebase configuration
-  const firebaseConfig = {
-    apiKey: "AIzaSyBfK7g3g210kLLM5Zrt9ssSyh-HKDjtdqQ",
-    authDomain: "sandbox-60afd.firebaseapp.com",
-    projectId: "sandbox-60afd",
-    storageBucket: "sandbox-60afd.firebasestorage.app",
-    messagingSenderId: "892163414095",
-    appId: "1:892163414095:web:6ee1eb03f6859cee3323a",
-    measurementId: "G-QQKP1QHY94"
-  };
-
-  // 3. Apps aur Database ko initialize karna
-  const app = initializeApp(firebaseConfig);
-  const analytics = getAnalytics(app);
   const db = getFirestore(app);
+  const auth = getAuth(app);
+  const provider = new GoogleAuthProvider();
 
-  // 4. Test karne ke liye data save karne ka function
+  // ============================================
+  // HELPER FUNCTION: Update Profile HUD
+  // ============================================
+  function updateProfileHUD(user) {
+    const profileHUD = document.getElementById('profile-hud');
+    const profilePic = document.getElementById('profile-pic');
+    const profileName = document.getElementById('profile-name');
+
+    if (user) {
+      // User is logged in - show profile
+      profilePic.src = user.photoURL || 'https://via.placeholder.com/40';
+      profilePic.alt = user.displayName || 'User';
+      profileName.textContent = user.displayName || 'User';
+      profileHUD.classList.remove('hidden');
+      console.log('✅ Profile HUD updated with:', user.displayName);
+    } else {
+      // User is logged out - hide profile
+      profileHUD.classList.add('hidden');
+    }
+  }
+
+  // ============================================
+  // GOOGLE LOGIN FUNCTION (with Account Selection)
+  // ============================================
+  async function loginWithGoogle() {
+    const loadingDiv = document.getElementById('auth-loading');
+    const loginOverlay = document.getElementById('login-overlay');
+    
+    try {
+      // Show loading indicator
+      loadingDiv.classList.remove('hidden');
+      
+      // Enable account selection (if multiple Google accounts are logged in)
+      provider.setCustomParameters({ prompt: 'select_account' });
+      
+      // Trigger Google Sign-In popup
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+      
+      // Log user info to console
+      console.log('✅ User signed in successfully!');
+      console.log(`📝 Display Name: ${user.displayName}`);
+      console.log(`📧 Email: ${user.email}`);
+      console.log(`📷 Photo URL: ${user.photoURL}`);
+      console.log(`🔑 UID: ${user.uid}`);
+      
+      // Update profile HUD with user info
+      updateProfileHUD(user);
+      
+      // Hide login overlay on successful login
+      loginOverlay.style.display = 'none';
+      loadingDiv.classList.add('hidden');
+      
+    } catch (error) {
+      console.error('❌ Login error:', error.code, error.message);
+      loadingDiv.classList.add('hidden');
+      
+      // Show error to user (only if not user-cancelled)
+      if (error.code !== 'auth/popup-closed-by-user') {
+        alert(`Sign-in failed: ${error.message}`);
+      }
+    }
+  }
+
+  // ============================================
+  // LOGOUT FUNCTION
+  // ============================================
+  async function logoutUser() {
+    try {
+      await signOut(auth);
+      console.log('✅ User logged out successfully!');
+    } catch (error) {
+      console.error('❌ Logout error:', error.message);
+      alert('Logout failed. Please try again.');
+    }
+  }
+
+  // ============================================
+  // AUTH STATE LISTENER (Persistent Login)
+  // ============================================
+  onAuthStateChanged(auth, (user) => {
+    const loginOverlay = document.getElementById('login-overlay');
+    const loadingDiv = document.getElementById('auth-loading');
+    
+    if (user) {
+      // User is signed in
+      console.log('✅ User is authenticated (persistent):', user.displayName);
+      loginOverlay.style.display = 'none';
+      loadingDiv.classList.add('hidden');
+      // Update profile HUD automatically
+      updateProfileHUD(user);
+    } else {
+      // User is signed out
+      console.log('❌ User is not authenticated');
+      loginOverlay.style.display = 'flex';
+      loadingDiv.classList.add('hidden');
+      updateProfileHUD(null);
+    }
+  });
+
+  // ============================================
+  // EXPOSE FUNCTIONS TO GLOBAL SCOPE
+  // ============================================
+  window.loginWithGoogle = loginWithGoogle;
+  window.logoutUser = logoutUser;
+
+  // ============================================
+  // SAMPLE FIRESTORE FUNCTION (Optional)
+  // ============================================
   async function saveSampleScore() {
     try {
       const docRef = await addDoc(collection(db, "player_scores"), {
@@ -591,8 +716,6 @@ saveSampleScore();
     }
   }
 
-  // 5. Function ko run karna
-  saveSampleScore();
 </script>
   </body>
 </html>
